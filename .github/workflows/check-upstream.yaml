@@ -1,0 +1,90 @@
+name: Check Upstream Release
+
+on:
+  schedule:
+    # Run daily at 08:00 UTC
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get current version
+        id: current
+        run: |
+          CURRENT=$(sed 's/-.*//' VERSION)
+          echo "version=${CURRENT}" >> "$GITHUB_OUTPUT"
+
+      - name: Get latest upstream release
+        id: upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST=$(gh api repos/prometheus/node_exporter/releases/latest --jq '.tag_name' | sed 's/^v//')
+          echo "version=${LATEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          if [ "${{ steps.current.outputs.version }}" = "${{ steps.upstream.outputs.version }}" ]; then
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+            echo "New upstream version available: ${{ steps.upstream.outputs.version }} (current: ${{ steps.current.outputs.version }})"
+          fi
+
+      - name: Download checksums
+        if: steps.compare.outputs.up_to_date == 'false'
+        id: checksums
+        run: |
+          VERSION="${{ steps.upstream.outputs.version }}"
+          BASE_URL="https://github.com/prometheus/node_exporter/releases/download/v${VERSION}"
+
+          # Download the official checksums file
+          curl -fSL -o /tmp/sha256sums.txt "${BASE_URL}/sha256sums.txt"
+
+          AMD64_SUM=$(grep "node_exporter-${VERSION}.linux-amd64.tar.gz" /tmp/sha256sums.txt | awk '{print $1}')
+          ARM64_SUM=$(grep "node_exporter-${VERSION}.linux-arm64.tar.gz" /tmp/sha256sums.txt | awk '{print $1}')
+
+          echo "amd64=${AMD64_SUM}" >> "$GITHUB_OUTPUT"
+          echo "arm64=${ARM64_SUM}" >> "$GITHUB_OUTPUT"
+
+      - name: Update VERSION file
+        if: steps.compare.outputs.up_to_date == 'false'
+        run: |
+          echo "${{ steps.upstream.outputs.version }}-1" > VERSION
+
+      - name: Update checksums in download.sh
+        if: steps.compare.outputs.up_to_date == 'false'
+        run: |
+          sed -i "s/\[\"x86_64\"\]=[a-f0-9]*/[\"x86_64\"]=${{ steps.checksums.outputs.amd64 }}/" download.sh
+          sed -i "s/\[\"aarch64\"\]=[a-f0-9]*/[\"aarch64\"]=${{ steps.checksums.outputs.arm64 }}/" download.sh
+
+      - name: Create Pull Request
+        if: steps.compare.outputs.up_to_date == 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: "auto/upgrade-node-exporter-${{ steps.upstream.outputs.version }}"
+          commit-message: "Upgrade node_exporter to ${{ steps.upstream.outputs.version }}"
+          title: "Upgrade node_exporter to ${{ steps.upstream.outputs.version }}"
+          body: |
+            Automated upgrade of upstream Prometheus node_exporter.
+
+            - **Current version**: ${{ steps.current.outputs.version }}
+            - **New version**: ${{ steps.upstream.outputs.version }}
+            - **Upstream release**: https://github.com/prometheus/node_exporter/releases/tag/v${{ steps.upstream.outputs.version }}
+
+            ### Changes
+            - Updated `VERSION` to `${{ steps.upstream.outputs.version }}-1`
+            - Updated SHA-256 checksums in `download.sh`
+
+            ### Next steps
+            After merging, push a tag (e.g. `v${{ steps.upstream.outputs.version }}-1`) to trigger the release workflow.
+          labels: automated,upgrade
