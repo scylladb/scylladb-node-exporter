@@ -10,13 +10,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSION=$(sed 's/-.*//' "$SCRIPT_DIR/VERSION")
 
 declare -A CHECKSUMS=(
-    ["x86_64"]=c46e5b6f53948477ff3a19d97c58307394a29fe64a01905646f026ddc32cb65b
-    ["aarch64"]=de69ec8341c8068b7c8e4cfe3eb85065d24d984a3b33007f575d307d13eb89a6
+    ["x86_64"]=9f5ea48e5bc7b656f8a91a32e7d7deb89f70f73dabd0d974418aca15f37d6810
+    ["aarch64"]=ba1886efbd76cb96b0087c695ea8d1b9cb6e8aa946c996d744e9ee16c8e3591a
 )
 
 declare -A GO_ARCH=(
-    ["x86_64"]=amd64
-    ["aarch64"]=arm64
+    ["x86_64"]=9f5ea48e5bc7b656f8a91a32e7d7deb89f70f73dabd0d974418aca15f37d6810md64
+    ["aarch64"]=ba1886efbd76cb96b0087c695ea8d1b9cb6e8aa946c996d744e9ee16c8e3591arm64
 )
 
 ARCH=$(arch)
