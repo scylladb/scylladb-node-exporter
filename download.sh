@@ -15,8 +15,8 @@ declare -A CHECKSUMS=(
 )
 
 declare -A GO_ARCH=(
-    ["x86_64"]=9f5ea48e5bc7b656f8a91a32e7d7deb89f70f73dabd0d974418aca15f37d6810md64
-    ["aarch64"]=ba1886efbd76cb96b0087c695ea8d1b9cb6e8aa946c996d744e9ee16c8e3591arm64
+    ["x86_64"]=amd64
+    ["aarch64"]=arm64
 )
 
 ARCH=$(arch)
