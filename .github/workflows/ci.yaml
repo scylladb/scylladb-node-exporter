@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [master, 'branch-*']
+  pull_request:
+    branches: [master, 'branch-*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download upstream binary
+        run: make download
+
+      - name: Extract and strip binary
+        run: make strip
+
+      - name: Verify binary
+        run: |
+          file build/node_exporter.stripped
+          build/node_exporter.stripped --version
+
+  package-rpm:
+    needs: build
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install build dependencies
+        run: dnf install -y rpm-build make wget binutils file
+
+      - name: Build binary
+        run: make strip
+
+      - name: Build RPM
+        run: |
+          VERSION=$(sed 's/-.*//' VERSION)
+          RELEASE=$(sed 's/^[^-]*-//' VERSION)
+          rpmbuild -bb dist/redhat/scylla-node-exporter.spec \
+            --define "version ${VERSION}" \
+            --define "release ${RELEASE}" \
+            --buildroot "$(pwd)/buildroot"
+
+  package-deb:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot make wget binutils file
+
+      - name: Build binary
+        run: make strip
+
+      - name: Build DEB
+        run: |
+          VERSION=$(sed 's/-.*//' VERSION)
+          ./dist/debian/build_deb.sh
