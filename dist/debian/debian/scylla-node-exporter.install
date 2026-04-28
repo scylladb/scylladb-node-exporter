@@ -1,0 +1,2 @@
+opt/scylladb/node_exporter/*
+etc/systemd/system/scylla-node-exporter.service.d/dependencies.conf

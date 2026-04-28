@@ -1,0 +1,17 @@
+Source: scylla-node-exporter
+Maintainer: ScyllaDB <pkg@scylladb.com>
+Homepage: https://github.com/scylladb/scylladb-node-exporter
+Section: database
+Priority: optional
+Standards-Version: 4.5.0
+Build-Depends: debhelper (>= 10)
+
+Package: scylla-node-exporter
+Architecture: amd64 arm64
+Depends: ${misc:Depends}
+Provides: scylla-enterprise-node-exporter
+Conflicts: scylla-enterprise-node-exporter
+Replaces: scylla-enterprise-node-exporter
+Description: Prometheus exporter for machine metrics
+ Prometheus exporter for machine metrics, written in Go with pluggable
+ metric collectors. Packaged for use with ScyllaDB.

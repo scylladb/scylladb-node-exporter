@@ -1,0 +1,32 @@
+#!/usr/bin/make -f
+
+override_dh_auto_configure:
+
+override_dh_auto_build:
+	$(MAKE)
+
+override_dh_auto_clean:
+
+override_dh_auto_install:
+	dh_auto_install
+	mkdir -p $(CURDIR)/debian/tmp/opt/scylladb/node_exporter/licenses
+	mkdir -p $(CURDIR)/debian/tmp/etc/systemd/system/scylla-node-exporter.service.d
+	install -m 0755 build/node_exporter.stripped $(CURDIR)/debian/tmp/opt/scylladb/node_exporter/node_exporter
+	install -m 0644 build/LICENSE $(CURDIR)/debian/tmp/opt/scylladb/node_exporter/licenses/LICENSE
+	install -m 0644 build/NOTICE $(CURDIR)/debian/tmp/opt/scylladb/node_exporter/licenses/NOTICE
+	install -m 0644 dist/systemd/scylla-node-exporter.service.d/dependencies.conf \
+		$(CURDIR)/debian/tmp/etc/systemd/system/scylla-node-exporter.service.d/dependencies.conf
+
+override_dh_installinit:
+	dh_installinit --no-start --name scylla-node-exporter
+
+override_dh_strip:
+
+override_dh_makeshlibs:
+
+override_dh_shlibdeps:
+
+override_dh_strip_nondeterminism:
+
+%:
+	dh $@
