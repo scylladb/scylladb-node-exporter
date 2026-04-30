@@ -133,7 +133,7 @@ jobs:
   upload-to-s3:
     needs: [package-rpm, package-deb, package-relocatable]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v5
