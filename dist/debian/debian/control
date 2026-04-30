@@ -9,9 +9,14 @@ Build-Depends: debhelper (>= 10)
 Package: scylla-node-exporter
 Architecture: amd64 arm64
 Depends: ${misc:Depends}
-Provides: scylla-enterprise-node-exporter
-Conflicts: scylla-enterprise-node-exporter
-Replaces: scylla-enterprise-node-exporter
 Description: Prometheus exporter for machine metrics
  Prometheus exporter for machine metrics, written in Go with pluggable
  metric collectors. Packaged for use with ScyllaDB.
+
+Package: scylla-enterprise-node-exporter
+Architecture: all
+Depends: scylla-node-exporter (= ${binary:Version}), ${misc:Depends}
+Section: oldlibs
+Description: Transitional package for scylla-node-exporter
+ This is a transitional package that installs scylla-node-exporter.
+ It can be safely removed.
