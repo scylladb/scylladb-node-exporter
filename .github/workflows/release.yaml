@@ -55,7 +55,7 @@ jobs:
           path: build/
 
       - name: Install RPM build tools
-        run: dnf install -y rpm-build
+        run: dnf install -y rpm-build systemd-rpm-macros
 
       - name: Build RPM
         run: |
@@ -65,6 +65,7 @@ jobs:
           rpmbuild -bb dist/redhat/scylla-node-exporter.spec \
             --define "version ${VERSION}" \
             --define "release ${RELEASE}" \
+            --define "srcdir $(pwd)" \
             --buildroot "$(pwd)/buildroot"
 
       - name: Upload RPM artifact
@@ -86,16 +87,20 @@ jobs:
           path: build/
 
       - name: Install DEB build tools
-        run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot debhelper
 
       - name: Build DEB
-        run: ./dist/debian/build_deb.sh
+        run: |
+          cp -a dist/debian/debian debian
+          VERSION=$(sed 's/-.*//' VERSION)
+          sed -i "1s/([^)]*)/($VERSION-1)/" debian/changelog
+          dpkg-buildpackage -us -uc -b
 
       - name: Upload DEB artifact
         uses: actions/upload-artifact@v4
         with:
           name: deb-package
-          path: build/*.deb
+          path: ../*.deb
 
   package-relocatable:
     needs: build

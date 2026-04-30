@@ -22,12 +22,12 @@ mkdir -p %{buildroot}%{_sysconfdir}/sysconfig
 mkdir -p %{buildroot}%{_unitdir}
 mkdir -p %{buildroot}/etc/systemd/system/scylla-node-exporter.service.d
 
-install -m 0755 build/node_exporter.stripped %{buildroot}/opt/scylladb/node_exporter/node_exporter
-install -m 0644 build/LICENSE %{buildroot}/opt/scylladb/node_exporter/licenses/LICENSE
-install -m 0644 build/NOTICE %{buildroot}/opt/scylladb/node_exporter/licenses/NOTICE
-install -m 0644 dist/sysconfig/scylla-node-exporter %{buildroot}%{_sysconfdir}/sysconfig/scylla-node-exporter
-install -m 0644 dist/systemd/scylla-node-exporter.service %{buildroot}%{_unitdir}/scylla-node-exporter.service
-install -m 0644 dist/systemd/scylla-node-exporter.service.d/dependencies.conf %{buildroot}/etc/systemd/system/scylla-node-exporter.service.d/dependencies.conf
+install -m 0755 %{srcdir}/build/node_exporter.stripped %{buildroot}/opt/scylladb/node_exporter/node_exporter
+install -m 0644 %{srcdir}/build/LICENSE %{buildroot}/opt/scylladb/node_exporter/licenses/LICENSE
+install -m 0644 %{srcdir}/build/NOTICE %{buildroot}/opt/scylladb/node_exporter/licenses/NOTICE
+install -m 0644 %{srcdir}/dist/sysconfig/scylla-node-exporter %{buildroot}%{_sysconfdir}/sysconfig/scylla-node-exporter
+install -m 0644 %{srcdir}/dist/systemd/scylla-node-exporter.service %{buildroot}%{_unitdir}/scylla-node-exporter.service
+install -m 0644 %{srcdir}/dist/systemd/scylla-node-exporter.service.d/dependencies.conf %{buildroot}/etc/systemd/system/scylla-node-exporter.service.d/dependencies.conf
 
 %post
 if [ $1 -eq 1 ] ; then
