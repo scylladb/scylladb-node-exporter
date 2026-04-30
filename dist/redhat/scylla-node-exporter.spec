@@ -6,15 +6,21 @@ Group:          Applications/Databases
 License:        ASL 2.0
 URL:            https://github.com/prometheus/node_exporter
 
-Provides:       scylla-enterprise-node-exporter = %{version}-%{release}
-Obsoletes:      scylla-enterprise-node-exporter < 2025.1.0
-
 %undefine _missing_build_ids_terminate_build
 %global _debugsource_template %{nil}
 %global _debuginfo_subpackages %{nil}
 
 %description
 Prometheus exporter for machine metrics, written in Go with pluggable metric collectors.
+
+%package -n scylla-enterprise-node-exporter
+Summary:        Transitional package for scylla-node-exporter
+Group:          Applications/Databases
+Requires:       scylla-node-exporter = %{version}-%{release}
+
+%description -n scylla-enterprise-node-exporter
+This is a transitional package that installs scylla-node-exporter.
+It can be safely removed.
 
 %install
 mkdir -p %{buildroot}/opt/scylladb/node_exporter/licenses
@@ -51,6 +57,9 @@ fi
 /opt/scylladb/node_exporter/licenses/LICENSE
 /opt/scylladb/node_exporter/licenses/NOTICE
 /etc/systemd/system/scylla-node-exporter.service.d/dependencies.conf
+
+%files -n scylla-enterprise-node-exporter
+# empty - shadow package
 
 %changelog
 * Tue Apr 28 2026 Yaron Kaikov <yaronkaikov@scylladb.com>
