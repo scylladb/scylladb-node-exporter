@@ -10,6 +10,10 @@ on:
       tag:
         description: 'Release tag (e.g. v1.10.2-1)'
         required: true
+      branch:
+        description: 'Branch to build from (default: master)'
+        required: false
+        default: 'master'
 
 permissions:
   contents: write
@@ -19,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - name: Set version
         id: version
@@ -47,6 +53,8 @@ jobs:
     container: fedora:latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - name: Download binary artifact
         uses: actions/download-artifact@v5
@@ -81,6 +89,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - name: Download binary artifact
         uses: actions/download-artifact@v5
@@ -111,6 +121,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - name: Download binary artifact
         uses: actions/download-artifact@v5
