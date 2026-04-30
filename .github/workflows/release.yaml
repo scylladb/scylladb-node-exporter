@@ -32,7 +32,7 @@ jobs:
         run: make strip
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: binary
           path: |
@@ -49,7 +49,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Download binary artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: binary
           path: build/
@@ -67,12 +67,14 @@ jobs:
             --define "release ${RELEASE}" \
             --define "srcdir $(pwd)" \
             --buildroot "$(pwd)/buildroot"
+          mkdir -p rpmbuild-out
+          find $HOME/rpmbuild/RPMS -name '*.rpm' -exec cp {} rpmbuild-out/ \;
 
       - name: Upload RPM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: rpm-package
-          path: /root/rpmbuild/RPMS/**/*.rpm
+          path: rpmbuild-out/*.rpm
 
   package-deb:
     needs: build
@@ -81,7 +83,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Download binary artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: binary
           path: build/
@@ -95,12 +97,14 @@ jobs:
           VERSION=$(sed 's/-.*//' VERSION)
           sed -i "1s/([^)]*)/($VERSION-1)/" debian/changelog
           dpkg-buildpackage -us -uc -b
+          mkdir -p deb-out
+          cp ../*.deb deb-out/
 
       - name: Upload DEB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: deb-package
-          path: ../*.deb
+          path: deb-out/*.deb
 
   package-relocatable:
     needs: build
@@ -109,7 +113,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Download binary artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: binary
           path: build/
@@ -121,7 +125,7 @@ jobs:
         run: python3 scripts/create-relocatable-package.py
 
       - name: Upload relocatable artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: relocatable-package
           path: build/scylla-node-exporter-*.tar.gz
@@ -132,7 +136,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts/
 
@@ -166,7 +170,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts/
 
