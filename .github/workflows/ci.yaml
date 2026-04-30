@@ -49,6 +49,11 @@ jobs:
             --define "srcdir $(pwd)" \
             --buildroot "$(pwd)/buildroot"
 
+      - name: Verify shadow package exists
+        run: |
+          rpm -qp --provides $(find ~/rpmbuild/RPMS -name 'scylla-enterprise-node-exporter-*.rpm') | grep scylla-enterprise-node-exporter
+          rpm -qp --requires $(find ~/rpmbuild/RPMS -name 'scylla-enterprise-node-exporter-*.rpm') | grep scylla-node-exporter
+
   package-deb:
     needs: build
     runs-on: ubuntu-latest
@@ -67,3 +72,8 @@ jobs:
           cp -a dist/debian/debian debian
           sed -i "1s/([^)]*)/($VERSION-1)/" debian/changelog
           dpkg-buildpackage -us -uc -b
+
+      - name: Verify shadow package exists
+        run: |
+          dpkg-deb -I ../scylla-enterprise-node-exporter_*.deb
+          dpkg-deb -f ../scylla-enterprise-node-exporter_*.deb Depends | grep scylla-node-exporter
