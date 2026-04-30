@@ -20,7 +20,14 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -40,7 +47,7 @@ jobs:
       - name: Upload binary artifact
         uses: actions/upload-artifact@v7
         with:
-          name: binary
+          name: binary-${{ matrix.arch }}
           path: |
             build/node_exporter.stripped
             build/node_exporter.debug
@@ -49,8 +56,17 @@ jobs:
 
   package-rpm:
     needs: build
-    runs-on: ubuntu-latest
-    container: fedora:latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            container: fedora:latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            container: fedora:latest
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -59,7 +75,7 @@ jobs:
       - name: Download binary artifact
         uses: actions/download-artifact@v8
         with:
-          name: binary
+          name: binary-${{ matrix.arch }}
           path: build/
 
       - name: Install RPM build tools
@@ -81,12 +97,19 @@ jobs:
       - name: Upload RPM artifact
         uses: actions/upload-artifact@v7
         with:
-          name: rpm-package
+          name: rpm-package-${{ matrix.arch }}
           path: rpmbuild-out/*.rpm
 
   package-deb:
     needs: build
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -95,7 +118,7 @@ jobs:
       - name: Download binary artifact
         uses: actions/download-artifact@v8
         with:
-          name: binary
+          name: binary-${{ matrix.arch }}
           path: build/
 
       - name: Install DEB build tools
@@ -113,12 +136,19 @@ jobs:
       - name: Upload DEB artifact
         uses: actions/upload-artifact@v7
         with:
-          name: deb-package
+          name: deb-package-${{ matrix.arch }}
           path: deb-out/*.deb
 
   package-relocatable:
     needs: build
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -127,7 +157,7 @@ jobs:
       - name: Download binary artifact
         uses: actions/download-artifact@v8
         with:
-          name: binary
+          name: binary-${{ matrix.arch }}
           path: build/
 
       - name: Install dependencies
@@ -139,7 +169,7 @@ jobs:
       - name: Upload relocatable artifact
         uses: actions/upload-artifact@v7
         with:
-          name: relocatable-package
+          name: relocatable-package-${{ matrix.arch }}
           path: build/scylla-node-exporter-*.tar.gz
 
   upload-to-s3:
@@ -161,21 +191,27 @@ jobs:
 
       - name: Upload RPM to S3
         run: |
-          aws s3 cp artifacts/rpm-package/ \
-            s3://downloads.scylladb.com/downloads/scylla/node-exporter/rpm/ \
-            --recursive --exclude '*' --include '*.rpm'
+          for dir in artifacts/rpm-package-*/; do
+            aws s3 cp "$dir" \
+              s3://downloads.scylladb.com/downloads/scylla/node-exporter/rpm/ \
+              --recursive --exclude '*' --include '*.rpm'
+          done
 
       - name: Upload DEB to S3
         run: |
-          aws s3 cp artifacts/deb-package/ \
-            s3://downloads.scylladb.com/downloads/scylla/node-exporter/deb/ \
-            --recursive --exclude '*' --include '*.deb'
+          for dir in artifacts/deb-package-*/; do
+            aws s3 cp "$dir" \
+              s3://downloads.scylladb.com/downloads/scylla/node-exporter/deb/ \
+              --recursive --exclude '*' --include '*.deb'
+          done
 
       - name: Upload relocatable to S3
         run: |
-          aws s3 cp artifacts/relocatable-package/ \
-            s3://downloads.scylladb.com/downloads/scylla/node-exporter/relocatable/ \
-            --recursive --exclude '*' --include '*.tar.gz'
+          for dir in artifacts/relocatable-package-*/; do
+            aws s3 cp "$dir" \
+              s3://downloads.scylladb.com/downloads/scylla/node-exporter/relocatable/ \
+              --recursive --exclude '*' --include '*.tar.gz'
+          done
 
   create-release:
     needs: [upload-to-s3]
@@ -189,9 +225,10 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           draft: true
           generate_release_notes: true
           files: |
-            artifacts/rpm-package/*.rpm
-            artifacts/deb-package/*.deb
-            artifacts/relocatable-package/*.tar.gz
+            artifacts/rpm-package-*/*.rpm
+            artifacts/deb-package-*/*.deb
+            artifacts/relocatable-package-*/*.tar.gz
