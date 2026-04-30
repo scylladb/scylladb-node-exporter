@@ -87,7 +87,7 @@ jobs:
           path: build/
 
       - name: Install DEB build tools
-        run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot debhelper
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot debhelper build-essential
 
       - name: Build DEB
         run: |
