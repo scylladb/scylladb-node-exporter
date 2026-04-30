@@ -16,6 +16,7 @@ Prometheus exporter for machine metrics, written in Go with pluggable metric col
 %package -n scylla-enterprise-node-exporter
 Summary:        Transitional package for scylla-node-exporter
 Group:          Applications/Databases
+BuildArch:      noarch
 Requires:       scylla-node-exporter = %{version}-%{release}
 
 %description -n scylla-enterprise-node-exporter
