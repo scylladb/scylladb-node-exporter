@@ -1,4 +1,5 @@
 Name:           scylla-node-exporter
+Epoch:          1
 Version:        %{version}
 Release:        %{release}
 Summary:        Prometheus exporter for machine metrics

@@ -1,4 +1,4 @@
-scylla-node-exporter (1.10.2-1) stable; urgency=medium
+scylla-node-exporter (1:1.10.2-1) stable; urgency=medium
 
   * Initial standalone packaging of scylla-node-exporter
 
