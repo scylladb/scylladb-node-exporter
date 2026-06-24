@@ -8,15 +8,28 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Explicit name so the check is "build (<arch>)", matching the repository
+    # ruleset's required status checks (the runner is a second matrix axis and
+    # would otherwise be appended to the default job name).
+    name: build (${{ matrix.arch }})
     strategy:
       matrix:
-        arch: [x86_64, aarch64]
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - name: Download upstream binary
-        run: make download
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: .go-version
+
+      - name: Build node_exporter from source
+        run: make build
 
       - name: Extract and strip binary
         run: make strip
@@ -26,6 +39,26 @@ jobs:
           file build/node_exporter.stripped
           build/node_exporter.stripped --version
 
+      - name: Scan binary for vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: rootfs
+          scan-ref: build/node_exporter.stripped
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: binary-${{ matrix.arch }}
+          path: |
+            build/node_exporter.stripped
+            build/node_exporter.debug
+            build/LICENSE
+            build/NOTICE
+
   package-rpm:
     needs: build
     runs-on: ubuntu-latest
@@ -33,11 +66,14 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - name: Install build dependencies
-        run: dnf install -y rpm-build make wget binutils file systemd-rpm-macros
+      - name: Download binary artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: binary-x86_64
+          path: build/
 
-      - name: Build binary
-        run: make strip
+      - name: Install build dependencies
+        run: dnf install -y rpm-build systemd-rpm-macros
 
       - name: Build RPM
         run: |
@@ -60,11 +96,14 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot debhelper build-essential make wget binutils file
+      - name: Download binary artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: binary-x86_64
+          path: build/
 
-      - name: Build binary
-        run: make strip
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot debhelper build-essential
 
       - name: Build DEB
         run: |
