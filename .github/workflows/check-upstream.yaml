@@ -16,75 +16,99 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - name: Get current version
-        id: current
-        run: |
-          CURRENT=$(sed 's/-.*//' VERSION)
-          echo "version=${CURRENT}" >> "$GITHUB_OUTPUT"
-
-      - name: Get latest upstream release
-        id: upstream
+      - name: Determine current and latest versions
+        id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST=$(gh api repos/prometheus/node_exporter/releases/latest --jq '.tag_name' | sed 's/^v//')
-          echo "version=${LATEST}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
 
-      - name: Compare versions
-        id: compare
-        run: |
-          if [ "${{ steps.current.outputs.version }}" = "${{ steps.upstream.outputs.version }}" ]; then
-            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "up_to_date=false" >> "$GITHUB_OUTPUT"
-            echo "New upstream version available: ${{ steps.upstream.outputs.version }} (current: ${{ steps.current.outputs.version }})"
+          # Current state tracked in the repo.
+          CUR_NE=$(sed 's/-.*//' VERSION)
+          CUR_REV=$(sed 's/^[^-]*-//' VERSION)
+          CUR_GO=$(cat .go-version)
+
+          # Latest upstream node_exporter release.
+          LATEST_NE=$(gh api repos/prometheus/node_exporter/releases/latest --jq '.tag_name' | sed 's/^v//')
+
+          # Latest stable Go toolchain.
+          LATEST_GO=$(curl -fsSL "https://go.dev/dl/?mode=json" \
+            | python3 -c "import sys,json; print([r['version'] for r in json.load(sys.stdin) if r.get('stable')][0])" \
+            | sed 's/^go//')
+
+          echo "Current:  node_exporter=${CUR_NE}-${CUR_REV}, go=${CUR_GO}"
+          echo "Latest:   node_exporter=${LATEST_NE}, go=${LATEST_GO}"
+
+          ACTION=none
+          NEW_VERSION="${CUR_NE}-${CUR_REV}"
+
+          if [ "$LATEST_NE" != "$CUR_NE" ]; then
+            # New upstream release: reset packaging revision to 1.
+            ACTION=upstream
+            NEW_VERSION="${LATEST_NE}-1"
+          elif [ "$LATEST_GO" != "$CUR_GO" ]; then
+            # node_exporter unchanged, but a newer Go is available: rebuild and
+            # bump the packaging revision so the new build is distinguishable.
+            ACTION=go
+            NEW_VERSION="${CUR_NE}-$((CUR_REV + 1))"
           fi
 
-      - name: Download checksums
-        if: steps.compare.outputs.up_to_date == 'false'
-        id: checksums
+          {
+            echo "action=${ACTION}"
+            echo "cur_ne=${CUR_NE}"
+            echo "cur_go=${CUR_GO}"
+            echo "latest_ne=${LATEST_NE}"
+            echo "latest_go=${LATEST_GO}"
+            echo "new_version=${NEW_VERSION}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Apply updates
+        if: steps.check.outputs.action != 'none'
         run: |
-          VERSION="${{ steps.upstream.outputs.version }}"
-          BASE_URL="https://github.com/prometheus/node_exporter/releases/download/v${VERSION}"
+          echo "${{ steps.check.outputs.new_version }}" > VERSION
+          echo "${{ steps.check.outputs.latest_go }}" > .go-version
 
-          # Download the official checksums file
-          curl -fSL -o /tmp/sha256sums.txt "${BASE_URL}/sha256sums.txt"
-
-          AMD64_SUM=$(grep "node_exporter-${VERSION}.linux-amd64.tar.gz" /tmp/sha256sums.txt | awk '{print $1}')
-          ARM64_SUM=$(grep "node_exporter-${VERSION}.linux-arm64.tar.gz" /tmp/sha256sums.txt | awk '{print $1}')
-
-          echo "amd64=${AMD64_SUM}" >> "$GITHUB_OUTPUT"
-          echo "arm64=${ARM64_SUM}" >> "$GITHUB_OUTPUT"
-
-      - name: Update VERSION file
-        if: steps.compare.outputs.up_to_date == 'false'
-        run: |
-          echo "${{ steps.upstream.outputs.version }}-1" > VERSION
-
-      - name: Update checksums in download.sh
-        if: steps.compare.outputs.up_to_date == 'false'
-        run: |
-          sed -i "s/\[\"x86_64\"\]=[a-f0-9]*/[\"x86_64\"]=${{ steps.checksums.outputs.amd64 }}/" download.sh
-          sed -i "s/\[\"aarch64\"\]=[a-f0-9]*/[\"aarch64\"]=${{ steps.checksums.outputs.arm64 }}/" download.sh
-
-      - name: Create Pull Request
-        if: steps.compare.outputs.up_to_date == 'false'
+      - name: Create Pull Request (node_exporter upgrade)
+        if: steps.check.outputs.action == 'upstream'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
-          branch: "auto/upgrade-node-exporter-${{ steps.upstream.outputs.version }}"
-          commit-message: "Upgrade node_exporter to ${{ steps.upstream.outputs.version }}"
-          title: "Upgrade node_exporter to ${{ steps.upstream.outputs.version }}"
+          branch: "auto/upgrade-node-exporter-${{ steps.check.outputs.latest_ne }}"
+          commit-message: "Upgrade node_exporter to ${{ steps.check.outputs.latest_ne }}"
+          title: "Upgrade node_exporter to ${{ steps.check.outputs.latest_ne }}"
           body: |
             Automated upgrade of upstream Prometheus node_exporter.
 
-            - **Current version**: ${{ steps.current.outputs.version }}
-            - **New version**: ${{ steps.upstream.outputs.version }}
-            - **Upstream release**: https://github.com/prometheus/node_exporter/releases/tag/v${{ steps.upstream.outputs.version }}
+            - **Current version**: ${{ steps.check.outputs.cur_ne }}
+            - **New version**: ${{ steps.check.outputs.latest_ne }}
+            - **Built with Go**: ${{ steps.check.outputs.latest_go }}
+            - **Upstream release**: https://github.com/prometheus/node_exporter/releases/tag/v${{ steps.check.outputs.latest_ne }}
 
             ### Changes
-            - Updated `VERSION` to `${{ steps.upstream.outputs.version }}-1`
-            - Updated SHA-256 checksums in `download.sh`
+            - Updated `VERSION` to `${{ steps.check.outputs.new_version }}`
+            - Pinned `.go-version` to `${{ steps.check.outputs.latest_go }}`
 
             ### Next steps
-            After merging, push a tag (e.g. `v${{ steps.upstream.outputs.version }}-1`) to trigger the release workflow.
+            After merging, push a tag (e.g. `v${{ steps.check.outputs.new_version }}`) to trigger the release workflow.
           labels: automated,upgrade
+
+      - name: Create Pull Request (Go rebuild)
+        if: steps.check.outputs.action == 'go'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          branch: "auto/rebuild-go-${{ steps.check.outputs.latest_go }}"
+          commit-message: "Rebuild node_exporter with Go ${{ steps.check.outputs.latest_go }}"
+          title: "Rebuild node_exporter ${{ steps.check.outputs.cur_ne }} with Go ${{ steps.check.outputs.latest_go }}"
+          body: |
+            Automated rebuild of node_exporter with a newer Go toolchain.
+
+            The upstream node_exporter version (`${{ steps.check.outputs.cur_ne }}`) is
+            unchanged, but a newer stable Go is available. Rebuilding from source picks
+            up Go runtime/stdlib fixes; the packaging revision is bumped so the new
+            build is distinguishable.
+
+            - **Go**: ${{ steps.check.outputs.cur_go }} → ${{ steps.check.outputs.latest_go }}
+            - **Version**: bumped to `${{ steps.check.outputs.new_version }}`
+
+            ### Next steps
+            After merging, push a tag (e.g. `v${{ steps.check.outputs.new_version }}`) to trigger the release workflow.
+          labels: automated,rebuild
