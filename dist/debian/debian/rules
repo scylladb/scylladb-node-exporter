@@ -3,7 +3,9 @@
 override_dh_auto_configure:
 
 override_dh_auto_build:
-	$(MAKE)
+	# Reuse the prebuilt binary produced by the build job when present;
+	# otherwise build node_exporter from source.
+	[ -f build/node_exporter.stripped ] || $(MAKE) strip
 
 override_dh_auto_clean:
 
