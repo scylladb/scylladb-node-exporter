@@ -64,6 +64,7 @@ jobs:
         with:
           name: binary-${{ matrix.arch }}
           path: |
+            build/node_exporter
             build/node_exporter.stripped
             build/node_exporter.debug
             build/LICENSE
