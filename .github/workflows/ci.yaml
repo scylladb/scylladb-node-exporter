@@ -108,8 +108,10 @@ jobs:
       - name: Build DEB
         run: |
           VERSION=$(sed 's/-.*//' VERSION)
+          RELEASE=$(sed 's/^[^-]*-//' VERSION)
           cp -a dist/debian/debian debian
-          sed -i "1s/([^)]*)/($VERSION-1)/" debian/changelog
+          # Keep the epoch (1:) and use the real packaging revision from VERSION.
+          sed -i "1s/([^)]*)/(1:$VERSION-$RELEASE)/" debian/changelog
           dpkg-buildpackage -us -uc -b
 
       - name: Verify shadow package exists
