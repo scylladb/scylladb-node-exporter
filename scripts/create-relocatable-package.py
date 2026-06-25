@@ -33,9 +33,11 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     pkg_name = f"scylla-node-exporter-{version}"
-    # Include the architecture in the tarball name so the per-arch builds do
-    # not collide when published to the same S3 prefix / GitHub release.
-    tarball = output_dir / f"{pkg_name}.{args.arch}.tar.gz"
+    # Use Go-style arch names (amd64/arm64) and include the arch in the tarball
+    # name so the per-arch builds do not collide when published to the same S3
+    # prefix / GitHub release.
+    go_arch = {"x86_64": "amd64", "aarch64": "arm64"}.get(args.arch, args.arch)
+    tarball = output_dir / f"{pkg_name}.{go_arch}.tar.gz"
 
     print(f"Creating relocatable package: {tarball}")
 
