@@ -143,7 +143,9 @@ jobs:
         run: |
           cp -a dist/debian/debian debian
           VERSION=$(sed 's/-.*//' VERSION)
-          sed -i "1s/([^)]*)/($VERSION-1)/" debian/changelog
+          RELEASE=$(sed 's/^[^-]*-//' VERSION)
+          # Keep the epoch (1:) and use the real packaging revision from VERSION.
+          sed -i "1s/([^)]*)/(1:$VERSION-$RELEASE)/" debian/changelog
           dpkg-buildpackage -us -uc -b
           mkdir -p deb-out
           cp ../*.deb deb-out/
