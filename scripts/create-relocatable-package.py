@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 #
 # Create a relocatable tarball package for scylla-node-exporter.
-# Usage: scripts/create-relocatable-package.py [--output DIR]
+# Usage: scripts/create-relocatable-package.py [--output DIR] [--arch ARCH]
 
 import argparse
 import os
 import pathlib
+import platform
 import subprocess
 import sys
 import tarfile
@@ -14,6 +15,8 @@ def main():
     parser = argparse.ArgumentParser(description="Create scylla-node-exporter relocatable package")
     parser.add_argument("--output", default="build",
                         help="Output directory for the tarball (default: build)")
+    parser.add_argument("--arch", default=platform.machine(),
+                        help="Target architecture for the tarball name (default: host arch)")
     args = parser.parse_args()
 
     script_dir = pathlib.Path(__file__).resolve().parent.parent
@@ -30,7 +33,9 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     pkg_name = f"scylla-node-exporter-{version}"
-    tarball = output_dir / f"{pkg_name}.tar.gz"
+    # Include the architecture in the tarball name so the per-arch builds do
+    # not collide when published to the same S3 prefix / GitHub release.
+    tarball = output_dir / f"{pkg_name}.{args.arch}.tar.gz"
 
     print(f"Creating relocatable package: {tarball}")
 
