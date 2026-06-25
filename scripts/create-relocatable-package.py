@@ -24,9 +24,12 @@ def main():
     version = version_file.read_text().strip().split("-")[0]
 
     build_dir = script_dir / "build"
-    binary = build_dir / "node_exporter.stripped"
+    # Ship the unstripped binary so downstream consumers (e.g. the ScyllaDB
+    # build) can strip it and extract debug info themselves, matching the
+    # layout of the upstream node_exporter release tarball.
+    binary = build_dir / "node_exporter"
     if not binary.exists():
-        print(f"ERROR: {binary} not found. Run 'make' first.", file=sys.stderr)
+        print(f"ERROR: {binary} not found. Run 'make build' first.", file=sys.stderr)
         sys.exit(1)
 
     output_dir = pathlib.Path(args.output)
@@ -45,11 +48,11 @@ def main():
         # Binary
         tar.add(str(binary), arcname=f"{pkg_name}/node_exporter")
 
-        # Licenses
+        # Licenses (flat at the top level, matching upstream node_exporter)
         for name in ("LICENSE", "NOTICE"):
             path = build_dir / name
             if path.exists():
-                tar.add(str(path), arcname=f"{pkg_name}/licenses/{name}")
+                tar.add(str(path), arcname=f"{pkg_name}/{name}")
 
         # Config files
         dist_dir = script_dir / "dist"
