@@ -40,6 +40,18 @@ make all
 make clean
 ```
 
+## Container images
+
+Every tagged release publishes a multi-arch (amd64/arm64) OCI image to
+`scylladb/scylladb-node-exporter` on Docker Hub, tagged with the release
+version and `latest`. The image is assembled from the same stripped,
+Trivy-scanned binaries produced for the RPM/DEB/relocatable packages (see
+`Dockerfile`), on top of `registry.access.redhat.com/ubi9/ubi-minimal`.
+
+Each published image is submitted to Red Hat for container certification via
+`preflight check container --submit=true`; maintainers are notified with a
+GitHub issue if certification fails.
+
 ## Repository Structure
 
 ```
