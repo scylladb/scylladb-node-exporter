@@ -268,7 +268,7 @@ jobs:
           curl -sSL -o /usr/local/bin/preflight \
             https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/latest/download/preflight-linux-amd64
           chmod +x /usr/local/bin/preflight
-          preflight check container "${{ needs.docker-build-push.outputs.image }}" \
+          preflight check container docker.io/scylladb/scylladb-node-exporter:${{ steps.tags.outputs.image }} \
             --certification-component-id "${PFLT_CERTIFICATION_PROJECT_ID}" \
             --submit=true
 
