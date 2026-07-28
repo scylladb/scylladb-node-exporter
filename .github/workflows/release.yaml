@@ -203,8 +203,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-    outputs:
-      image: ${{ steps.tags.outputs.image }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -234,7 +232,6 @@ jobs:
         run: |
           VERSION=$(cat VERSION)
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "image=docker.io/scylladb/scylladb-node-exporter:${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -268,7 +265,7 @@ jobs:
           curl -sSL -o /usr/local/bin/preflight \
             https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/latest/download/preflight-linux-amd64
           chmod +x /usr/local/bin/preflight
-          preflight check container ${{ needs.docker-build-push.outputs.image }} \
+          preflight check container docker.io/scylladb/scylladb-node-exporter:latest \
             --certification-component-id "${PFLT_CERTIFICATION_PROJECT_ID}" \
             --submit=true
 
@@ -280,9 +277,9 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `Red Hat preflight certification failed for ${{ needs.docker-build-push.outputs.image }}`,
+              title: `Red Hat preflight certification failed for docker.io/scylladb/scylladb-node-exporter:latest`,
               body: `The Red Hat preflight container certification check failed for ` +
-                `\`${{ needs.docker-build-push.outputs.image }}\` in ` +
+                `\`docker.io/scylladb/scylladb-node-exporter:latest\` in ` +
                 `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}.\n\n` +
                 `Please review the workflow logs and resubmit certification once fixed.`,
               labels: ['certification-failure'],
