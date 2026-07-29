@@ -14,6 +14,11 @@ on:
         description: 'Branch to build from (default: master)'
         required: false
         default: 'master'
+      docker_only:
+        description: 'Only build/push the container image (skip RPM/DEB/relocatable packaging and S3/GitHub release)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -72,6 +77,7 @@ jobs:
 
   package-rpm:
     needs: build
+    if: github.event_name != 'workflow_dispatch' || !inputs.docker_only
     strategy:
       matrix:
         include:
@@ -118,6 +124,7 @@ jobs:
 
   package-deb:
     needs: build
+    if: github.event_name != 'workflow_dispatch' || !inputs.docker_only
     strategy:
       matrix:
         include:
@@ -159,6 +166,7 @@ jobs:
 
   package-relocatable:
     needs: build
+    if: github.event_name != 'workflow_dispatch' || !inputs.docker_only
     strategy:
       matrix:
         include:
@@ -189,6 +197,62 @@ jobs:
         with:
           name: relocatable-package-${{ matrix.arch }}
           path: build/scylla-node-exporter-*.tar.gz
+
+  docker-build-push:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Download x86_64 binary artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: binary-x86_64
+          path: dist/amd64
+
+      - name: Download aarch64 binary artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: binary-aarch64
+          path: dist/arm64
+
+      - name: Lay out per-arch build context
+        run: |
+          for arch_dir in dist/amd64 dist/arm64; do
+            mv "$arch_dir/node_exporter.stripped" "$arch_dir/node_exporter"
+            chmod +x "$arch_dir/node_exporter"
+          done
+
+      - name: Set image tags
+        id: tags
+        run: |
+          VERSION=$(cat VERSION)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            VERSION=${{ steps.tags.outputs.version }}
+          tags: |
+            scylladb/scylladb-node-exporter:${{ steps.tags.outputs.version }}
+            scylladb/scylladb-node-exporter:latest
 
   upload-to-s3:
     needs: [package-rpm, package-deb, package-relocatable]
