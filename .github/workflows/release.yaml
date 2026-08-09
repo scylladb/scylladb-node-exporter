@@ -15,13 +15,14 @@ on:
         required: false
         default: 'master'
       docker_only:
-        description: 'Only build/push the container image (skip RPM/DEB/relocatable packaging and S3/GitHub release)'
+        description: 'Only build/push the container image and run Red Hat certification (skip RPM/DEB/relocatable packaging and S3/GitHub release)'
         required: false
         type: boolean
         default: false
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   build:
@@ -253,6 +254,38 @@ jobs:
           tags: |
             scylladb/scylladb-node-exporter:${{ steps.tags.outputs.version }}
             scylladb/scylladb-node-exporter:latest
+
+  redhat-certify:
+    needs: docker-build-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Red Hat preflight container certification
+        env:
+          PFLT_PYXIS_API_TOKEN: ${{ secrets.PFLT_PYXIS_API_TOKEN }}
+          PFLT_CERTIFICATION_PROJECT_ID: ${{ secrets.REDHAT_COMPONENT_ID }}
+        run: |
+          curl -sSL -o /usr/local/bin/preflight \
+            https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/latest/download/preflight-linux-amd64
+          chmod +x /usr/local/bin/preflight
+          preflight check container docker.io/scylladb/scylladb-node-exporter:latest \
+            --certification-component-id "${PFLT_CERTIFICATION_PROJECT_ID}" \
+            --submit=true
+
+      - name: Notify maintainers on certification failure
+        if: failure()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Red Hat preflight certification failed for docker.io/scylladb/scylladb-node-exporter:latest`,
+              body: `The Red Hat preflight container certification check failed for ` +
+                `\`docker.io/scylladb/scylladb-node-exporter:latest\` in ` +
+                `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}.\n\n` +
+                `Please review the workflow logs and resubmit certification once fixed.`,
+              labels: ['certification-failure'],
+            })
 
   upload-to-s3:
     needs: [package-rpm, package-deb, package-relocatable]
