@@ -7,8 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   check:
@@ -72,6 +71,7 @@ jobs:
         if: steps.check.outputs.action == 'upstream'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
+          token: ${{ secrets.AUTO_BACKPORT_TOKEN }}
           branch: "auto/upgrade-node-exporter-${{ steps.check.outputs.latest_ne }}"
           commit-message: "Upgrade node_exporter to ${{ steps.check.outputs.latest_ne }}"
           title: "Upgrade node_exporter to ${{ steps.check.outputs.latest_ne }}"
@@ -95,6 +95,7 @@ jobs:
         if: steps.check.outputs.action == 'go'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
+          token: ${{ secrets.AUTO_BACKPORT_TOKEN }}
           branch: "auto/rebuild-go-${{ steps.check.outputs.latest_go }}"
           commit-message: "Rebuild node_exporter with Go ${{ steps.check.outputs.latest_go }}"
           title: "Rebuild node_exporter ${{ steps.check.outputs.cur_ne }} with Go ${{ steps.check.outputs.latest_go }}"
