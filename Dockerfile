@@ -6,6 +6,7 @@ FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 ARG TARGETARCH
 ARG VERSION=latest
+ARG RELEASE=1
 
 LABEL name="scylladb-node-exporter" \
       vendor="ScyllaDB" \
@@ -13,7 +14,7 @@ LABEL name="scylladb-node-exporter" \
       summary="Prometheus exporter for hardware and OS metrics" \
       description="Prometheus exporter for hardware and OS metrics exposed by *NIX kernels, built by ScyllaDB from the upstream node_exporter project." \
       version="${VERSION}" \
-      release="1"
+      release="${RELEASE}"
 
 COPY dist/${TARGETARCH}/node_exporter /bin/node_exporter
 COPY dist/${TARGETARCH}/LICENSE /licenses/LICENSE
