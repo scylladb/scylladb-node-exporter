@@ -9,7 +9,10 @@
 # the correct version and revision via `node_exporter --version` while being
 # compiled with our (newer) Go toolchain.
 #
-# Usage: ./build.sh [--output-dir DIR]
+# Usage: ./build.sh [--output-dir DIR] [--test]
+#
+# --test also runs upstream's unit, end-to-end and metrics/rules checks.
+# Perf collector tests skip unless kernel.perf_event_paranoid is 0.
 #
 
 set -euo pipefail
@@ -18,12 +21,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSION=$(sed 's/-.*//' "$SCRIPT_DIR/VERSION")
 REPO="https://github.com/prometheus/node_exporter"
 OUTPUT_DIR="${SCRIPT_DIR}/build"
+RUN_TESTS=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --output-dir)
             OUTPUT_DIR="$2"
             shift 2
+            ;;
+        --test)
+            RUN_TESTS=1
+            shift
             ;;
         *)
             echo "Unknown option: $1" >&2
@@ -73,3 +81,12 @@ cp "$SRC_DIR/node_exporter/NOTICE" "$OUTPUT_DIR/NOTICE"
 
 echo "Built: $OUTPUT_DIR/node_exporter"
 "$OUTPUT_DIR/node_exporter" --version
+
+if [ "$RUN_TESTS" = "1" ]; then
+    echo "Running upstream tests with $(go version)"
+    make test test-e2e checkmetrics checkrules
+    # Tests that run the binary skip under -short or when bin/ lacks it;
+    # upstream finds it via $GOPATH/bin, so unset GOPATH to use ./bin.
+    mkdir -p bin && cp node_exporter bin/
+    env -u GOPATH go test -count=1 .
+fi

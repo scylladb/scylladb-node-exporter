@@ -6,7 +6,7 @@ BINARY := $(BUILD_DIR)/node_exporter
 STRIPPED := $(BUILD_DIR)/node_exporter.stripped
 DEBUGINFO := $(BUILD_DIR)/node_exporter.debug
 
-.PHONY: all build strip clean
+.PHONY: all build strip test clean
 
 all: strip
 
@@ -22,6 +22,9 @@ $(STRIPPED): $(BINARY)
 	cp $(BINARY) $(STRIPPED)
 	strip $(STRIPPED)
 	objcopy --add-gnu-debuglink=$(DEBUGINFO) $(STRIPPED)
+
+test:
+	./build.sh --output-dir $(BUILD_DIR)/test --test
 
 clean:
 	rm -rf $(BUILD_DIR)

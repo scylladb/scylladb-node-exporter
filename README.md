@@ -33,6 +33,9 @@ Requires a Go toolchain (matching `.go-version`) and `git` on PATH.
 # Clone the upstream tag and build node_exporter from source
 make build
 
+# Build and run upstream's unit, end-to-end and metrics/rules checks
+make test
+
 # Build and strip (default target; also produces debuginfo)
 make all
 
