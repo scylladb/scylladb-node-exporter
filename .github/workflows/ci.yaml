@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [master, 'branch-*']
 
+permissions:
+  contents: read
+
 jobs:
   build:
     # Explicit name so the check is "build (<arch>)", matching the repository
@@ -59,8 +62,35 @@ jobs:
             build/LICENSE
             build/NOTICE
 
+  test:
+    name: test (${{ matrix.arch }})
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: .go-version
+
+      - name: Allow perf_event access for perf collector tests
+        run: sudo sysctl -w kernel.perf_event_paranoid=0
+
+      - name: Run upstream node_exporter tests
+        run: make test
+
   package-rpm:
-    needs: build
+    needs: [build, test]
     runs-on: ubuntu-latest
     container: fedora:latest
     steps:
@@ -91,7 +121,7 @@ jobs:
           rpm -qp --requires $(find ~/rpmbuild/RPMS -name 'scylla-enterprise-node-exporter-*.rpm') | grep scylla-node-exporter
 
   package-deb:
-    needs: build
+    needs: [build, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
