@@ -44,8 +44,10 @@ make clean
 
 Every tagged release publishes a multi-arch (amd64/arm64) OCI image to
 `scylladb/scylladb-node-exporter` on Docker Hub, tagged with the release
-version and `latest`. The image is assembled from the same stripped,
-Trivy-scanned binaries produced for the RPM/DEB/relocatable packages (see
+version (e.g. `1.12.1-3`) and `latest`. Its `version` label holds the
+upstream version (`1.12.1`) and its `release` label the packaging revision
+(`3`), as in the RPM/DEB packages. The image is assembled from the same
+stripped, Trivy-scanned binaries produced for the RPM/DEB/relocatable packages (see
 `Dockerfile`), on top of `registry.access.redhat.com/ubi9/ubi-minimal`.
 
 Each published image is submitted to Red Hat for container certification via
