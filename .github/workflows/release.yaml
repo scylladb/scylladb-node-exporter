@@ -42,6 +42,10 @@ jobs:
       - name: Set version
         id: version
         run: |
+          if ! [[ "$(cat VERSION)" =~ ^[^-]+-[0-9][0-9A-Za-z.]*$ ]]; then
+            echo "VERSION '$(cat VERSION)' must look like <upstream>-<release>, e.g. 1.12.1-3" >&2
+            exit 1
+          fi
           VERSION=$(sed 's/-.*//' VERSION)
           RELEASE=$(sed 's/^[^-]*-//' VERSION)
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
@@ -232,6 +236,8 @@ jobs:
         run: |
           VERSION=$(cat VERSION)
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "upstream_version=${VERSION%%-*}" >> "$GITHUB_OUTPUT"
+          echo "release=${VERSION#*-}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -250,7 +256,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           build-args: |
-            VERSION=${{ steps.tags.outputs.version }}
+            VERSION=${{ steps.tags.outputs.upstream_version }}
+            RELEASE=${{ steps.tags.outputs.release }}
           tags: |
             scylladb/scylladb-node-exporter:${{ steps.tags.outputs.version }}
             scylladb/scylladb-node-exporter:latest
